@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gu0z5kw.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -26,10 +26,67 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
 
-        const classCollection = client.db("schoolDB").collection("classes");
+        const userCollection = client.db("schoolDB").collection("users");
         const instructorCollection = client.db("schoolDB").collection("instructors");
+        const classCollection = client.db("schoolDB").collection("classes");
+        const selectClassCollection = client.db("schoolDB").collection("selectClass");
 
-      
+        // user related api
+        app.get("/users", async (req, res) => {
+            const result = await userCollection.find().toArray();
+            res.send(result);
+        })
+
+        app.post("/users", async (req, res) => {
+            const user = req.body;
+            console.log(user);
+            const query = { email: user.email }
+            const existingUser = await userCollection.findOne(query);
+            console.log('Existing User', existingUser);
+            if (existingUser) {
+                return res.send({ message: "User Already Existed" })
+            }
+            const result = await userCollection.insertOne(user);
+            res.send(result);
+        });
+
+        // instructor
+        app.get('/instructors', async (req, res) => {
+            const result = await instructorCollection.find().toArray();
+            res.send(result);
+        })
+
+
+        // classes
+        app.get('/classes', async (req, res) => {
+            const result = await classCollection.find().toArray();
+            res.send(result);
+        })
+
+        // Select Classes
+        app.post('/selectclass', async (req, res) => {
+            const selectclass = req.body;
+            console.log(selectclass);
+            const result = await selectClassCollection.insertOne(selectclass);
+            res.send(result);
+        })
+
+        app.get("/selectclass", async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                res.send([])
+            }
+            const query = { email: email }
+            const result = await selectClassCollection.find(query).toArray();
+            res.send(result);
+        })
+        app.delete('/selectclass/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await selectClassCollection.deleteOne(query);
+            res.send(result);
+        })
+
 
 
 
@@ -38,7 +95,7 @@ async function run() {
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // Ensures that the client will close when you finish/error
-        await client.close();
+        // await client.close();
     }
 }
 run().catch(console.dir);
