@@ -9,6 +9,24 @@ const jwt = require('jsonwebtoken');
 app.use(cors());
 app.use(express.json());
 
+const verifyJWT = (req, res, next) => {
+    const authorization = req.headers.authorization;
+    if (!authorization) {
+        return res.status(401).send({ error: true, message: "Unauthorized Access" })
+    }
+    // bearer token
+    const token = authorization.split(' ')[1];
+    console.log('Token Veriffy', token);
+
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (error, decoded) => {
+        if (error) {
+            return res.status(401).send({ error: true, message: 'unauthorized access' })
+        }
+        req.decoded = decoded;
+        next();
+    })
+}
+
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gu0z5kw.mongodb.net/?retryWrites=true&w=majority`;
@@ -32,11 +50,11 @@ async function run() {
         const classCollection = client.db("schoolDB").collection("classes");
         const selectClassCollection = client.db("schoolDB").collection("selectClass");
 
-        app.post('/jwt', async(req, res) =>{
+        app.post('/jwt', async (req, res) => {
             const user = req.body;
             const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
 
-            res.send({token})
+            res.send({ token })
         })
 
 
@@ -104,15 +122,22 @@ async function run() {
             res.send(result);
         })
 
-        app.get("/selectclass", async (req, res) => {
+        app.get("/selectclass", verifyJWT, async (req, res) => {
             const email = req.query.email;
             if (!email) {
                 res.send([])
             }
+
+            const decodedEmail = req.decoded.email;
+            if (email !== decodedEmail) {
+                return res.status(403).send({ error: true, message: 'Forbidden Access' })
+            }
+
             const query = { email: email }
             const result = await selectClassCollection.find(query).toArray();
             res.send(result);
         })
+        
         app.delete('/selectclass/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
