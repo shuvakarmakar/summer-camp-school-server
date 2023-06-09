@@ -3,6 +3,7 @@ const app = express();
 const cors = require('cors');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
+const jwt = require('jsonwebtoken');
 
 // middleware
 app.use(cors());
@@ -30,6 +31,14 @@ async function run() {
         const instructorCollection = client.db("schoolDB").collection("instructors");
         const classCollection = client.db("schoolDB").collection("classes");
         const selectClassCollection = client.db("schoolDB").collection("selectClass");
+
+        app.post('/jwt', async(req, res) =>{
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+
+            res.send({token})
+        })
+
 
         // user related api
         app.get("/users", async (req, res) => {
