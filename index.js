@@ -59,7 +59,7 @@ async function run() {
 
 
         // user related api
-        app.get("/users", async (req, res) => {
+        app.get("/users", verifyJWT, async (req, res) => {
             const result = await userCollection.find().toArray();
             res.send(result);
         })
@@ -76,6 +76,34 @@ async function run() {
             const result = await userCollection.insertOne(user);
             res.send(result);
         });
+
+        // Admin Verify
+        app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+
+            if (req.decoded.email !== email) {
+                res.send({ admin: false })
+            }
+
+            const query = { email: email }
+            const user = await userCollection.findOne(query);
+            const result = { admin: user?.role === 'admin' }
+            res.send(result);
+        })
+
+        // Instructor Verify
+        app.get('/users/instructor/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+
+            // if (req.decoded.email !== email) {
+            //     res.send({ instructor: false })
+            // }
+
+            const query = { email: email }
+            const user = await userCollection.findOne(query);
+            const result = { instructor: user?.role === 'instructor' }
+            res.send(result);
+        })
 
         app.patch('/users/admin/:id', async (req, res) => {
             const id = req.params.id;
@@ -109,10 +137,38 @@ async function run() {
 
 
         // classes
+        app.post('/classes', async (req, res) => {
+            const classItem = req.body;
+            const result = await classCollection.insertOne(classItem);
+            res.send(result);
+        })
+
         app.get('/classes', async (req, res) => {
             const result = await classCollection.find().toArray();
             res.send(result);
         })
+        
+        // used to see each instructor added classes
+        app.get("/instructor-classes", async (req, res) => {
+            const instructorEmail = req.query.instructorEmail;
+            if (!instructorEmail) {
+                res.send([]);
+                return;
+            }
+
+            try {
+                const query = { instructorEmail: instructorEmail };
+                const result = await classCollection.find(query).toArray();
+                res.send(result);
+            } catch (error) {
+                console.error("Error fetching instructor classes:", error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+
+
+
+
 
         // Select Classes
         app.post('/selectclass', async (req, res) => {
@@ -137,7 +193,7 @@ async function run() {
             const result = await selectClassCollection.find(query).toArray();
             res.send(result);
         })
-        
+
         app.delete('/selectclass/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
