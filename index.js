@@ -46,9 +46,9 @@ async function run() {
         await client.connect();
 
         const userCollection = client.db("schoolDB").collection("users");
-        const instructorCollection = client.db("schoolDB").collection("instructors");
         const classCollection = client.db("schoolDB").collection("classes");
         const selectClassCollection = client.db("schoolDB").collection("selectClass");
+        const paymentCollection = client.db("schoolDB").collection("payment");
 
         app.post('/jwt', async (req, res) => {
             const user = req.body;
@@ -131,9 +131,11 @@ async function run() {
 
         // instructor
         app.get('/instructors', async (req, res) => {
-            const result = await instructorCollection.find().toArray();
-            res.send(result);
-        })
+            const query = { role: 'instructor' };
+            const instructors = await userCollection.find(query).toArray();
+            res.send(instructors);
+        });
+
 
 
         // classes
@@ -143,11 +145,11 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/classes', async (req, res) => {
-            const result = await classCollection.find().toArray();
-            res.send(result);
-        })
-        
+        // app.get('/classes', async (req, res) => {
+        //     const result = await classCollection.find().toArray();
+        //     res.send(result);
+        // })
+
         // used to see each instructor added classes
         app.get("/instructor-classes", async (req, res) => {
             const instructorEmail = req.query.instructorEmail;
@@ -165,6 +167,52 @@ async function run() {
                 res.status(500).send("Internal Server Error");
             }
         });
+        // For Update Instructor Data
+        app.patch("/classes/:id", async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updatedFields = req.body;
+
+            try {
+                const result = await classCollection.updateOne(filter, { $set: updatedFields });
+                res.send(result);
+            } catch (error) {
+                console.error("Error updating class item:", error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+
+        app.get("/classes", async (req, res) => {
+            const status = req.query.status;
+            const query = status ? { status: status } : {}; // Add the status filter if provided
+
+            try {
+                const classes = await classCollection.find(query).toArray();
+                res.send(classes);
+            } catch (error) {
+                console.error("Error fetching classes:", error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+
+
+
+
+        // Update class status
+        app.patch("/classes/:id", async (req, res) => {
+            const classId = req.params.id;
+            const updatedFields = req.body;
+
+            try {
+                const filter = { _id: new ObjectId(classId) };
+                const result = await classCollection.updateOne(filter, { $set: updatedFields });
+                res.send(result);
+            } catch (error) {
+                console.error("Error updating class item:", error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+
 
 
 
@@ -193,6 +241,9 @@ async function run() {
             const result = await selectClassCollection.find(query).toArray();
             res.send(result);
         })
+
+
+
 
         app.delete('/selectclass/:id', async (req, res) => {
             const id = req.params.id;
