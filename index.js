@@ -1,9 +1,10 @@
 const express = require('express');
-const app = express();
 const cors = require('cors');
-require('dotenv').config();
-const port = process.env.PORT || 5000;
 const jwt = require('jsonwebtoken');
+const app = express();
+const port = process.env.PORT || 5000;
+require('dotenv').config();
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 
 // middleware
 app.use(cors());
@@ -48,7 +49,7 @@ async function run() {
         const userCollection = client.db("schoolDB").collection("users");
         const classCollection = client.db("schoolDB").collection("classes");
         const selectClassCollection = client.db("schoolDB").collection("selectClass");
-        const paymentCollection = client.db("schoolDB").collection("payment");
+        const paymentCollection = client.db("schoolDB").collection("payments");
 
         app.post('/jwt', async (req, res) => {
             const user = req.body;
@@ -242,9 +243,6 @@ async function run() {
             res.send(result);
         })
 
-
-
-
         app.delete('/selectclass/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
@@ -252,6 +250,39 @@ async function run() {
             res.send(result);
         })
 
+
+        // Payment
+        app.get('/payment/:id', async (req, res) => {
+            try {
+              const classId = req.params.id;
+              const result = await selectClassCollection.findOne({ _id: new ObjectId(classId) });
+              if (result) {
+                res.send(result);
+              } else {
+                res.status(404).send('Class not found');
+              }
+            } catch (error) {
+              console.error(error);
+              res.status(500).send('Internal Server Error: ' + error.message);
+            }
+          });
+          
+          
+
+        // create payment intent
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const { price } = req.body;
+            const amount = parseInt(price * 100);
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            });
+        });
 
 
 
