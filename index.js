@@ -330,6 +330,17 @@ async function run() {
             }
         });
 
+        // Get Classes Data for Popular Courses
+        app.get("/classes", async (req, res) => {
+            try {
+                // Fetch the classes sorted by enrolled in descending order
+                const classes = await classCollection.find().sort({ enrolled: -1 }).limit(6).toArray();
+                res.send(classes);
+            } catch (error) {
+                console.error("Error fetching classes:", error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
 
 
 
