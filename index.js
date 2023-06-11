@@ -251,23 +251,55 @@ async function run() {
         })
 
 
+
+        // Payment Info Post
+        app.post('/payments', verifyJWT, async (req, res) => {
+            const payment = req.body;
+            const insertResult = await paymentCollection.insertOne(payment);
+
+            // Update classCollection
+            const className = payment.className;
+            const instructorEmail = payment.instructorEmail;
+            const classQuery = { className: className, instructorEmail: instructorEmail };
+
+            // Get the remaining values of availableSeat and enrolled
+            const classResult = await classCollection.findOne(classQuery);
+            if (classResult) {
+                const remainingAvailableSeat = classResult.availableSeat - 1;
+                const remainingEnrolled = classResult.enrolled + 1;
+
+                // Update classCollection with remaining values
+                const remainingClassUpdate = { $set: { availableSeat: remainingAvailableSeat, enrolled: remainingEnrolled } };
+                await classCollection.updateOne(classQuery, remainingClassUpdate);
+
+                // Delete corresponding entry from selectClassCollection
+                const selectClassQuery = { className: className, instructorEmail: instructorEmail };
+                await selectClassCollection.deleteOne(selectClassQuery);
+
+                res.send(insertResult);
+            } else {
+                res.status(404).send('Class not found');
+            }
+        });
+
+
         // Payment
         app.get('/payment/:id', async (req, res) => {
             try {
-              const classId = req.params.id;
-              const result = await selectClassCollection.findOne({ _id: new ObjectId(classId) });
-              if (result) {
-                res.send(result);
-              } else {
-                res.status(404).send('Class not found');
-              }
+                const classId = req.params.id;
+                const result = await selectClassCollection.findOne({ _id: new ObjectId(classId) });
+                if (result) {
+                    res.send(result);
+                } else {
+                    res.status(404).send('Class not found');
+                }
             } catch (error) {
-              console.error(error);
-              res.status(500).send('Internal Server Error: ' + error.message);
+                console.error(error);
+                res.status(500).send('Internal Server Error: ' + error.message);
             }
-          });
-          
-          
+        });
+
+
 
         // create payment intent
         app.post('/create-payment-intent', verifyJWT, async (req, res) => {
@@ -283,6 +315,21 @@ async function run() {
                 clientSecret: paymentIntent.client_secret
             });
         });
+
+        // For MyEnrolled Classes
+        app.get('/enrolled-classes/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+
+            try {
+                const query = { email: email };
+                const enrolledClasses = await paymentCollection.find(query).toArray();
+                res.send(enrolledClasses);
+            } catch (error) {
+                console.error('Error fetching enrolled classes:', error);
+                res.status(500).send('Internal Server Error');
+            }
+        });
+
 
 
 
