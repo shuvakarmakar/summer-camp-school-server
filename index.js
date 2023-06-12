@@ -44,7 +44,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
 
         const userCollection = client.db("schoolDB").collection("users");
         const classCollection = client.db("schoolDB").collection("classes");
@@ -329,6 +329,21 @@ async function run() {
                 res.status(500).send('Internal Server Error');
             }
         });
+        
+        // For Payment History
+        app.get('/payment-history/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+        
+            try {
+                const query = { email: email };
+                const paymentHistory = await paymentCollection.find(query).sort({ _id: -1 }).toArray();
+                res.send(paymentHistory);
+            } catch (error) {
+                console.error('Error fetching payment history:', error);
+                res.status(500).send('Internal Server Error');
+            }
+        });
+        
 
         // Get Classes Data for Popular Courses
         app.get("/classes", async (req, res) => {
